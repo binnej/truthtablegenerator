@@ -1,6 +1,6 @@
 # Truth Table Generator
 
-A single-file web page that generates truth tables for propositional logic formulas. No build step, no dependencies: open `truth-table.html` in any modern browser.
+A vibe coded single-file web page that generates truth tables for propositional logic formulas. No build step, no dependencies: open `truth-table.html` in any modern browser.
 
 ## Usage
 
