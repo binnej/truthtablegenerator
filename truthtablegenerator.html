@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Truth Table Generator</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1b1f27;--muted:#6a7280;--line:#dfe3ea;--accent:#3b5bdb;--accent-t:#fff;--btn:#eef1f6;--t:#1f8a4c;--f:#c0392b;--hl:#eaf0ff;--err:#c0392b;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161b;--card:#1d2027;--text:#e8eaf0;--muted:#9099a8;--line:#2c313b;--accent:#7b93ff;--accent-t:#10131a;--btn:#272b35;--t:#4cc983;--f:#ff7b6b;--hl:#232a42;--err:#ff7b6b;color-scheme:dark}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.4}
+main{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+p.sub{margin:0 0 18px;color:var(--muted);font-size:.92rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+#expr{width:100%;font-size:1.4rem;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font-family:"Cambria Math",Cambria,Georgia,serif}
+#expr:focus{outline:2px solid var(--accent);border-color:transparent}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.btns button{font-size:1.2rem;min-width:48px;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--btn);color:var(--text);cursor:pointer;font-family:"Cambria Math",Cambria,Georgia,serif}
+.btns button:hover{border-color:var(--accent)}
+.btns .sp{flex:1}
+.btns .ghost{font-size:.9rem;font-family:inherit}
+.go{display:block;width:100%;height:48px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-t);font-size:1.05rem;font-weight:600;cursor:pointer}
+.opt{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.9rem;color:var(--muted)}
+#msg{margin-top:12px;color:var(--err);min-height:1.2em;font-size:.95rem}
+#out{margin-top:16px}
+.verdict{margin:0 0 12px;font-weight:600}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;margin:0 auto;font-family:"Cambria Math",Cambria,Georgia,serif}
+th,td{padding:8px 14px;border:1px solid var(--line);text-align:center;white-space:nowrap}
+th{background:var(--btn);font-weight:600}
+td.v1{color:var(--t);font-weight:600}
+td.v0{color:var(--f);font-weight:600}
+.final{background:var(--hl)}
+th.final{background:var(--hl)}
+.help{margin-top:16px;color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<main>
+<h1>Truth Table Generator</h1>
+<p class="sub">Type a formula using letters as propositions, then press Generate.</p>
+<div class="card">
+<input id="expr" type="text" value="(p ⇒ q) ⇔ (¬q ⇒ ¬p)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Logic formula">
+<div class="btns">
+<button data-ins="∨" title="or">∨</button>
+<button data-ins="∧" title="and">∧</button>
+<button data-ins="¬" title="not">¬</button>
+<button data-ins="(" title="open bracket">(</button>
+<button data-ins=")" title="close bracket">)</button>
+<button data-ins=" ⇒ " title="implication">⇒</button>
+<button data-ins=" ⇔ " title="equivalence">⇔</button>
+<span class="sp"></span>
+<button id="back" class="ghost" title="Backspace">⌫</button>
+<button id="clear" class="ghost">Clear</button>
+</div>
+<button class="go" id="go">Generate table</button>
+<label class="opt"><input type="checkbox" id="sub" checked> Show intermediate columns</label>
+<div id="msg" role="alert"></div>
+</div>
+<div id="out"></div>
+<p class="help">Keyboard shortcuts: <b>&amp;</b> or <b>^</b> = ∧ · <b>|</b> = ∨ · <b>!</b> or <b>~</b> = ¬ · <b>=&gt;</b> = ⇒ · <b>&lt;=&gt;</b> = ⇔. Precedence: ¬, ∧, ∨, ⇒, ⇔. Rows run from all 1s down to all 0s.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const ex=$('expr');
+const MAP=[['<=>','⇔'],['↔','⇔'],['=>','⇒'],['→','⇒'],['&','∧'],['^','∧'],['|','∨'],['!','¬'],['~','¬']];
+function norm(){
+  let v=ex.value,p=ex.selectionStart,o=v;
+  for(const [a,b] of MAP){v=v.split(a).join(b);}
+  if(v!==o){const d=v.length-o.length;ex.value=v;ex.setSelectionRange(p+d,p+d);}
+}
+ex.addEventListener('input',norm);
+ex.addEventListener('keydown',e=>{if(e.key==='Enter')gen();});
+function insert(t){
+  const s=ex.selectionStart,e=ex.selectionEnd;
+  ex.value=ex.value.slice(0,s)+t+ex.value.slice(e);
+  ex.focus();ex.setSelectionRange(s+t.length,s+t.length);
+}
+document.querySelectorAll('[data-ins]').forEach(b=>b.addEventListener('click',()=>insert(b.dataset.ins)));
+$('back').onclick=()=>{const s=ex.selectionStart,e=ex.selectionEnd;
+  if(s!==e){insert('');return;}
+  if(s>0){ex.value=ex.value.slice(0,s-1)+ex.value.slice(s);ex.focus();ex.setSelectionRange(s-1,s-1);}};
+$('clear').onclick=()=>{ex.value='';ex.focus();$('out').innerHTML='';$('msg').textContent='';};
+$('go').onclick=gen;
+$('sub').onchange=()=>{if($('out').innerHTML)gen();};
+
+function tokenize(s){
+  const t=[];
+  for(const c of s){
+    if(/\s/.test(c))continue;
+    if(/[A-Za-z]/.test(c))t.push({k:'var',v:c});
+    else if('()¬∧∨⇒⇔'.includes(c))t.push({k:c});
+    else throw new Error('Unexpected character “'+c+'”.');
+  }
+  return t;
+}
+function parse(tokens){
+  let i=0;
+  const peek=()=>tokens[i]&&tokens[i].k;
+  function iff(){let l=imp();while(peek()==='⇔'){i++;l={t:'⇔',a:l,b:imp()};}return l;}
+  function imp(){const l=or();if(peek()==='⇒'){i++;return{t:'⇒',a:l,b:imp()};}return l;}
+  function or(){let l=and();while(peek()==='∨'){i++;l={t:'∨',a:l,b:and()};}return l;}
+  function and(){let l=not();while(peek()==='∧'){i++;l={t:'∧',a:l,b:not()};}return l;}
+  function not(){
+    const k=peek();
+    if(k==='¬'){i++;return{t:'¬',a:not()};}
+    if(k==='var'){return{t:'var',n:tokens[i++].v};}
+    if(k==='('){i++;const n=iff();if(peek()!==')')throw new Error('Missing closing bracket.');i++;n.p=true;return n;}
+    if(k===undefined)throw new Error('The formula ends unexpectedly.');
+    throw new Error('Unexpected symbol “'+k+'”.');
+  }
+  if(!tokens.length)throw new Error('Please enter a formula.');
+  const r=iff();
+  if(i<tokens.length)throw new Error(tokens[i].k===')'?'Unmatched closing bracket.':'Unexpected symbol “'+(tokens[i].v||tokens[i].k)+'”.');
+  return r;
+}
+const PREC={'⇔':1,'⇒':2,'∨':3,'∧':4};
+function str(n){
+  if(n.t==='var')return n.n;
+  if(n.t==='¬')return '¬'+(n.a.t==='var'||n.a.t==='¬'?str(n.a):'('+str(n.a)+')');
+  const w=(c,right)=>{
+    if(c.t==='var'||c.t==='¬')return str(c);
+    const same=c.t===n.t&&(n.t==='∧'||n.t==='∨');
+    const need=c.p||PREC[c.t]<PREC[n.t]||(PREC[c.t]===PREC[n.t]&&!same);
+    return need?'('+str(c)+')':str(c);
+  };
+  return w(n.a)+' '+n.t+' '+w(n.b,true);
+}
+function vars(n,s=new Set()){
+  if(n.t==='var')s.add(n.n);else{vars(n.a,s);if(n.b)vars(n.b,s);}
+  return s;
+}
+function ev(n,env){
+  switch(n.t){
+    case 'var':return env[n.n];
+    case '¬':return 1-ev(n.a,env);
+    case '∧':return ev(n.a,env)&ev(n.b,env);
+    case '∨':return ev(n.a,env)|ev(n.b,env);
+    case '⇒':return (1-ev(n.a,env))|ev(n.b,env);
+    case '⇔':return ev(n.a,env)===ev(n.b,env)?1:0;
+  }
+}
+function subs(n,list,seen){
+  if(n.t==='var')return;
+  subs(n.a,list,seen);if(n.b)subs(n.b,list,seen);
+  const s=str(n);
+  if(!seen.has(s)){seen.add(s);list.push({n,s});}
+}
+function gen(){
+  const msg=$('msg'),out=$('out');
+  msg.textContent='';out.innerHTML='';
+  let ast;
+  try{ast=parse(tokenize(ex.value));}catch(e){msg.textContent=e.message;return;}
+  const vs=[...vars(ast)].sort((a,b)=>a.toLowerCase()===b.toLowerCase()?(a<b?-1:1):a.toLowerCase()<b.toLowerCase()?-1:1);
+  if(vs.length>8){msg.textContent='Please use at most 8 different propositions.';return;}
+  const cols=[];
+  if($('sub').checked)subs(ast,cols,new Set());
+  const fs=str(ast);
+  if(!cols.length||cols[cols.length-1].s!==fs){
+    if(ast.t==='var')cols.push({n:ast,s:fs});
+  }
+  const last=cols.length-1;
+  const N=vs.length,rows=1<<N;
+  let html='<div class="wrap"><table><thead><tr>';
+  vs.forEach(v=>html+='<th>'+v+'</th>');
+  const showCols=$('sub').checked?cols:[{n:ast,s:fs}];
+  showCols.forEach((c,i)=>html+='<th'+(i===showCols.length-1?' class="final"':'')+'>'+c.s+'</th>');
+  html+='</tr></thead><tbody>';
+  let ones=0;
+  for(let r=0;r<rows;r++){
+    const env={};
+    vs.forEach((v,k)=>env[v]=((r>>(N-1-k))&1)?0:1);
+    html+='<tr>';
+    vs.forEach(v=>html+='<td class="v'+env[v]+'">'+env[v]+'</td>');
+    showCols.forEach((c,i)=>{
+      const val=ev(c.n,env);
+      if(i===showCols.length-1)ones+=val;
+      html+='<td class="v'+val+(i===showCols.length-1?' final':'')+'">'+val+'</td>';
+    });
+    html+='</tr>';
+  }
+  html+='</tbody></table></div>';
+  const verdict=ones===rows?'Tautology: always true.':ones===0?'Contradiction: always false.':'Contingency: true in '+ones+' of '+rows+' rows.';
+  out.innerHTML='<div class="card"><p class="verdict">'+verdict+'</p>'+html+'</div>';
+}
+gen();
+</script>
+</body>
+</html>
