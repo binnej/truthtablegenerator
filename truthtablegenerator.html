@@ -35,6 +35,7 @@ td.v1{color:var(--t);font-weight:600}
 td.v0{color:var(--f);font-weight:600}
 .final{background:var(--hl)}
 th.final{background:var(--hl)}
+.tex{margin-top:16px}.tex h2{font-size:1.1rem;margin:0 0 4px}.tex h3{font-size:.85rem;color:var(--muted);margin:14px 0 6px;font-weight:600}.tex pre{margin:0;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow-x:auto;font-size:.85rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre}.tex button{margin-top:8px;height:36px;padding:0 14px;border:1px solid var(--line);border-radius:8px;background:var(--btn);color:var(--text);cursor:pointer}.tex button:hover{border-color:var(--accent)}
 .help{margin-top:16px;color:var(--muted);font-size:.85rem}
 </style>
 </head>
@@ -149,6 +150,8 @@ function subs(n,list,seen){
   const s=str(n);
   if(!seen.has(s)){seen.add(s);list.push({n,s});}
 }
+const TEX={'¬':'\\neg ','∧':'\\land ','∨':'\\lor ','⇒':'\\Rightarrow ','⇔':'\\Leftrightarrow '};
+function tex(s){return s.replace(/[¬∧∨⇒⇔]/g,c=>TEX[c]).replace(/\s+/g,' ').trim();}
 function gen(){
   const msg=$('msg'),out=$('out');
   msg.textContent='';out.innerHTML='';
@@ -185,6 +188,25 @@ function gen(){
   html+='</tbody></table></div>';
   const verdict=ones===rows?'Tautology: always true.':ones===0?'Contradiction: always false.':'Contingency: true in '+ones+' of '+rows+' rows.';
   out.innerHTML='<div class="card"><p class="verdict">'+verdict+'</p>'+html+'</div>';
+  let tt='\\begin{tabular}{'+'c'.repeat(N)+'|'+'c'.repeat(showCols.length)+'}\n  '+vs.map(v=>'$'+v+'$').concat(showCols.map(c=>'$'+tex(c.s)+'$')).join(' & ')+' \\\\ \\hline\n';
+  for(let r=0;r<rows;r++){
+    const env={};
+    vs.forEach((v,k)=>env[v]=((r>>(N-1-k))&1)?0:1);
+    tt+='  '+vs.map(v=>env[v]).concat(showCols.map(c=>ev(c.n,env))).join(' & ')+' \\\\\n';
+  }
+  tt+='\\end{tabular}';
+  const box=document.createElement('div');
+  box.className='card tex';
+  box.innerHTML='<h2>LaTeX</h2><h3>Expression</h3><pre id="t1"></pre><button data-c="t1">Copy</button><h3>Truth table</h3><pre id="t2"></pre><button data-c="t2">Copy</button>';
+  out.appendChild(box);
+  $('t1').textContent='$'+tex(fs)+'$';
+  $('t2').textContent=tt;
+  box.querySelectorAll('button').forEach(b=>b.onclick=async()=>{
+    const txt=$(b.dataset.c).textContent;
+    try{await navigator.clipboard.writeText(txt);b.textContent='Copied ✓';}
+    catch(e){const rg=document.createRange();rg.selectNodeContents($(b.dataset.c));const sl=getSelection();sl.removeAllRanges();sl.addRange(rg);b.textContent='Selected, press Ctrl+C';}
+    setTimeout(()=>b.textContent='Copy',1500);
+  });
 }
 gen();
 </script>
